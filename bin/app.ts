@@ -13,7 +13,7 @@ async function main() {
         "us-east-1"
     }
   };
-  new Template(app, "DynamoSqlDemoStack5", props);
+  new Template(app, "DynamoSqlDemoStack6", props);
 }
 
 main().catch(console.error);

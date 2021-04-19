@@ -1,6 +1,18 @@
 # CDK Template
 
 <!-- ![Architecture](architecture.svg) -->
+## Demonstration
+```bash
+# Clone the Repo:
+git clone git@github.com:shafkevi/cdk-dynamo-sql-demo.git && cd cdk-dynamo-sql-demo && ls | grep -v src | xargs rm -rf && cd src/app
+
+# Install the dependencies
+npm install
+
+# Run the API
+node api.js
+```
+
 
 ## Setup
 
