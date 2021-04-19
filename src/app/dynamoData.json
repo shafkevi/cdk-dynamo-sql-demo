@@ -1,0 +1,42 @@
+[
+    {
+        "partitionKey": "users",
+        "sortKey": "user_Kevin#",
+        "id": 1,
+        "name": "Kevin",
+        "phone": "(123) 456-7890",
+        "addresses": [
+            {
+                "address": "123 Fake street",
+                "city": "Seattle",
+                "zipCode": "43243"
+            },
+            {
+                "address": "987 Real street",
+                "city": "Seattle",
+                "zipCode": "43243"
+
+            }
+        ]
+    },
+    {
+        "partitionKey": "users",
+        "sortKey": "user_Mat#",
+        "id": 2,
+        "name": "Mat",
+        "phone": "(456) 789-0123",
+        "addresses": [
+            {
+                "address": "987 Fake street",
+                "city": "Seattle",
+                "zipCode": "43243"
+            },
+            {
+                "address": "123 Real street",
+                "city": "Seattle",
+                "zipCode": "43243"
+
+            }
+        ]
+    }
+]

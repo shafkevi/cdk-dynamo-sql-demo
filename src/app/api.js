@@ -10,6 +10,29 @@ const dynamo = new AWS.DynamoDB.DocumentClient({});
 const cloudFormation = new AWS.CloudFormation({});
 const PARAMETERS = {};
 
+
+const cleanSql = (records, meta) => {
+    const output = []
+    for (let i=0; i<records.length; i++){
+        record = records[i];
+        const record_output = {}
+        for (let j = 0; j<record.length; j++){
+            const item = record[j];
+            if ("stringValue" in item)
+                _value = item["stringValue"]
+            else if ("longValue" in item)
+                _value = item["longValue"]
+            else if ("isNull" in item)
+                _value = None
+            else if ("arrayValues" in item) // # TODO: more fun nested work here if needed.
+                _value = item["arrayValues"]
+            record_output[meta[j]["label"]] = _value
+        }
+        output.push(record_output)
+    }
+    return output
+}
+
 const dynamoOrSql = (req, res, next) => {
     if (Object.keys(req.query).includes("dynamo")){
         req.dynamo=true;
@@ -30,11 +53,16 @@ app.get('/users', async(req, res, next) => {
     if (req.dynamo){
         result = await dynamo.query({
             TableName: PARAMETERS.DynamoTableName,
-            Key: {
-                partitionKey: "users",
-                sortKey: "b",
-            }
+            KeyConditionExpression: "partitionKey = :partitionKey",
+            ExpressionAttributeValues: {
+                ":partitionKey": "users",
+            },
+            ExpressionAttributeNames: {
+                "#name": "name"
+            },
+            ProjectionExpression: "id, #name, phone"
         }).promise();
+        result = result.Items;
     }
     else {
         result = await rds.executeStatement({
@@ -42,11 +70,13 @@ app.get('/users', async(req, res, next) => {
             resourceArn: PARAMETERS.SqlDatabaseArn,
             database: "app",
             sql:"select * from users",
+            includeResultMetadata: true,
         }).promise();
+        result = cleanSql(result["records"], result["columnMetadata"])
     }
+    
     console.log(JSON.stringify(result));
     res.send(result);
-//   res.send('NODE How to bring a containerized web app online in 12 minutes (from start to finish)');
 });
 
 (async () => {
@@ -55,7 +85,8 @@ app.get('/users', async(req, res, next) => {
     }).promise();
     const outputs = stackInfo.Stacks[0].Outputs;
     outputs.map(o=>{return PARAMETERS[o.ExportName] = o.OutputValue});
-})();
 
-app.listen(PORT, HOST);
-console.log(`Running on http://${HOST}:${PORT}`);
+
+    app.listen(PORT, HOST);
+    console.log(`Running on http://${HOST}:${PORT}`);
+})();
