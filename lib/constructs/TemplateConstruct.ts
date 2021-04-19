@@ -3,7 +3,7 @@ import path from "path";
 import { Repository } from "@aws-cdk/aws-codecommit";
 import { CfnOutput, Construct, Duration, RemovalPolicy } from "@aws-cdk/core";
 import { AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId } from "@aws-cdk/custom-resources";
-import { Ec2Environment } from "@aws-cdk/aws-cloud9";
+import { CloneRepository, Ec2Environment } from "@aws-cdk/aws-cloud9";
 import { SubnetType, Vpc } from "@aws-cdk/aws-ec2";
 import { AttributeType, BillingMode, Table } from "@aws-cdk/aws-dynamodb";
 import { AuroraCapacityUnit, AuroraPostgresEngineVersion, DatabaseClusterEngine, ServerlessCluster, SubnetGroup } from "@aws-cdk/aws-rds";
@@ -19,17 +19,42 @@ export default class Template extends Construct {
       isDefault: true
     });
 
-    const repositoryName = "Sample1";
+    const userArn = process.env.USER_ARN;
+    console.log(userArn);
+    const repositoryName = `${id}Repo`;
     const branchName = "main";
     const authorName = "AwsStartups";
 
-    const codeCommitRepository = new Repository(this, "demoRepository", {
-      repositoryName: `${id}Repository`,
+    // const codeCommitRepository = new Repository(this, "demoRepository", {
+    //   repositoryName: `${id}Repository`,
+    // });
+    const codeCommitRepository = new AwsCustomResource(this, `codeCommitRepository`, {
+      installLatestAwsSdk: false,
+      onCreate: {
+        service: "CodeCommit",
+        action: "createRepository",
+        parameters: {
+          repositoryName,
+        },
+        physicalResourceId: PhysicalResourceId.of('id'),
+        // ignoreErrorCodesMatching: ".*",
+      },
+      onDelete: {
+        service: "CodeCommit",
+        action: "deleteRepository",
+        parameters: {
+          repositoryName,
+        },
+        physicalResourceId: PhysicalResourceId.of('id'),
+      },
+      policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
     });
+
 
     // Maybe need to try doing a putFile for each one instead?
     // Since right now I'm getting a "A parent commit ID is required. Either use GetBranch to retrieve the latest commit ID for the branch" error
-    const initializeCodeCommitRepoCustomResource = new AwsCustomResource(this, `InitializeCodeCommitRepo`, {
+    // https://docs.aws.amazon.com/codecommit/latest/userguide/how-to-create-commit.html#create-first-commit
+    const codeCommitCodeCustomResource = new AwsCustomResource(this, `codeCommitCodeCustomResource`, {
       installLatestAwsSdk: false,
       onCreate: {
         service: "CodeCommit",
@@ -39,7 +64,6 @@ export default class Template extends Construct {
           branchName,
           authorName,
           commitMessage: "Initializing Repo",
-          parentCommitId: "",
           putFiles: [
             {
               filePath: "api.js",
@@ -56,15 +80,87 @@ export default class Template extends Construct {
       },
       policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
     });
+    codeCommitCodeCustomResource.node.addDependency(codeCommitRepository);
 
+    // const codeCommitApiCustomResource = new AwsCustomResource(this, `codeCommitApiCustomResource`, {
+    //   installLatestAwsSdk: false,
+    //   onCreate: {
+    //     service: "CodeCommit",
+    //     action: "putFile",
+    //     parameters: {
+    //       repositoryName,
+    //       branchName,
+    //       commitMessage: "Initializing Repo with api.js",
+    //       filePath: "api.js",
+    //       fileContent: Buffer.from(fs.readFileSync(path.join(__dirname, "..", "..", "src", "app","api.js"))).toString()
+    //     },
+    //     physicalResourceId: PhysicalResourceId.of('id'),
+    //     // ignoreErrorCodesMatching: ".*",
+    //   },
+    //   policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
+    // });
+    // codeCommitApiCustomResource.node.addDependency(codeCommitRepository);
+
+    // const codeCommitPackageCustomResource = new AwsCustomResource(this, `codeCommitPackageCustomResource`, {
+    //   installLatestAwsSdk: false,
+    //   onCreate: {
+    //     service: "CodeCommit",
+    //     action: "putFile",
+    //     parameters: {
+    //       repositoryName,
+    //       branchName,
+    //       commitMessage: "Commiting Package.json",
+    //       filePath: "package.json",
+    //       fileContent: Buffer.from(fs.readFileSync(path.join(__dirname, "..", "..", "src", "app","package.json"))).toString()
+    //     },
+    //     physicalResourceId: PhysicalResourceId.of('id'),
+    //     // ignoreErrorCodesMatching: ".*",
+    //   },
+    //   policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
+    // });
+    // codeCommitPackageCustomResource.node.addDependency(codeCommitRepository);
+
+    const repository = Repository.fromRepositoryArn(this, "RepositoryConstruct", codeCommitRepository.getResponseField("repositoryMetadata.Arn"));
     const cloudNineInstance = new Ec2Environment(this, "CloudNineEnvironment", {
       vpc,
-      clonedRepositories: [{
-        repositoryUrl: codeCommitRepository.repositoryCloneUrlHttp,
-        pathComponent: "~"
-      }]
+      clonedRepositories: [
+        CloneRepository.fromCodeCommit(repository, "/src"),
+      ]
     })
-    cloudNineInstance.node.addDependency(initializeCodeCommitRepoCustomResource);
+    cloudNineInstance.node.addDependency(codeCommitCodeCustomResource);
+
+    // const callerIdentity = new AwsCustomResource(this, `callerIdentity`, {
+    //   installLatestAwsSdk: false,
+    //   onCreate: {
+    //     service: "STS",
+    //     action: "getCallerIdentity",
+    //     physicalResourceId: PhysicalResourceId.of('id'),
+    //     // ignoreErrorCodesMatching: ".*",
+    //   },
+    //   policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
+    // });
+
+    const addCloudNineMembership = new AwsCustomResource(this, `addCloudNineMembership`, {
+      installLatestAwsSdk: false,
+      onCreate: {
+        service: "Cloud9",
+        action: "createEnvironmentMembership",
+        parameters: {
+          environmentId: cloudNineInstance.environmentId,
+          permissions: "read-write",
+          userArn
+        },
+        physicalResourceId: PhysicalResourceId.of('id'),
+        // ignoreErrorCodesMatching: ".*",
+      },
+      policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
+    });
+    // addCloudNineMembership.node.addDependency(callerIdentity);
+    addCloudNineMembership.node.addDependency(cloudNineInstance);
+
+
+    // cloudNineInstance.node.addDependency(codeCommitPackageCustomResource);
+    // cloudNineInstance.node.addDependency(codeCommitApiCustomResource);
 
 
     // const dynamoDbTable = new Table(this, "DynamoDBTable", {
@@ -109,13 +205,13 @@ export default class Template extends Construct {
 
     new CfnOutput(this, "CodeCommitRepositoryName", {
       exportName: `CodeCommitRepositoryName`,
-      value: codeCommitRepository.repositoryName
+      value: repositoryName
     });
 
-    new CfnOutput(this, "cloud9IdeUrl", {
-      exportName: `cloud9IdeUrl`,
-      value: cloudNineInstance.ideUrl
-    });
+    // new CfnOutput(this, "cloud9IdeUrl", {
+    //   exportName: `cloud9IdeUrl`,
+    //   value: cloudNineInstance.ideUrl
+    // });
 
     // new CfnOutput(this, "DynamoTableName", {
     //   exportName: `DynamoTableName`,
