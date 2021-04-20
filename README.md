@@ -9,6 +9,9 @@ git clone git@github.com:shafkevi/cdk-dynamo-sql-demo.git && cd cdk-dynamo-sql-d
 # Install the dependencies
 npm install
 
+# Seed the databases
+node seed.js
+
 # Run the API
 node api.js
 ```
