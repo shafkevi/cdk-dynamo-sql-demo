@@ -1,4 +1,5 @@
 const AWS = require('aws-sdk');
+const { formatSqlRecords } = require("./helpers.js");
 
 const rds = new AWS.RDSDataService({});
 const dynamo = new AWS.DynamoDB.DocumentClient({});
@@ -7,7 +8,7 @@ const PARAMETERS = {};
 
 const seedDynamo = async() => {
 
-    newItems = require("./dynamoData.json");
+    newItems = require("./data/dynamoData.json");
     let first = 0;
     const totalItems = newItems.length;
     console.log(`Items to write ${totalItems}`);
@@ -33,26 +34,38 @@ const seedDynamo = async() => {
 
 
 const seedRds = async() => {
+    const sqlData = require("./data/sqlData.json");
     console.log("Creating Tables");
-    result = await rds.executeStatement({
-        secretArn: PARAMETERS.SqlDatabaseSecretArn,
-        resourceArn: PARAMETERS.SqlDatabaseArn,
-        database: "app",
-        sql:"create table if not exists users (id bigint, name text, phone text, primary key (id));",
-    }).promise();
-    console.log(result);
+    for (const table in sqlData.tables){
+        console.log(`  Creating: ${table} table`);
+        result = await rds.executeStatement({
+            secretArn: PARAMETERS.SqlDatabaseSecretArn,
+            resourceArn: PARAMETERS.SqlDatabaseArn,
+            database: "app",
+            sql: sqlData.tables[table].create
+        }).promise();
+    }
+
+
     console.log("Loading Data");
 
-    result = await rds.batchExecuteStatement({
-        secretArn: PARAMETERS.SqlDatabaseSecretArn,
-        resourceArn: PARAMETERS.SqlDatabaseArn,
-        database: "app",
-        sql:"insert into users(id, name, phone) VALUES(:id,  :name, :phone) ON CONFLICT DO NOTHING",
-        parameterSets: [
-            [{ "name": "id", "value": {"doubleValue": "1"}}, { "name": "name", "value": {"stringValue": "Kevin"}}, { "name": "phone", "value": {"stringValue": "(123) 456-7890"}}],
-            [{ "name": "id", "value": {"doubleValue": "2"}}, { "name": "name", "value": {"stringValue": "Mat"}}, { "name": "phone", "value": {"stringValue": "(456) 789-0123"}}],
-        ]
-    }).promise();
+    for (const dataType in sqlData.data){
+        console.log(`  Loading: ${dataType}`);
+        const data = sqlData.data[dataType];
+        const schema = sqlData.schema[dataType];
+        const records = formatSqlRecords(data, schema);
+        console.log(JSON.stringify(records));
+        result = await rds.batchExecuteStatement({
+            secretArn: PARAMETERS.SqlDatabaseSecretArn,
+            resourceArn: PARAMETERS.SqlDatabaseArn,
+            database: "app",
+            sql: sqlData.tables[dataType].insert,
+            parameterSets: records,
+
+        }).promise();
+    }
+
+
 }
 
 (async () => {
@@ -63,6 +76,6 @@ const seedRds = async() => {
     outputs.map(o=>{return PARAMETERS[o.ExportName] = o.OutputValue});
 
     await seedRds();
-    await seedDynamo();
+    // await seedDynamo();
 
 })();

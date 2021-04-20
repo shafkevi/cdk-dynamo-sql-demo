@@ -1,0 +1,43 @@
+{
+    "tables": {
+        "users": {
+            "create": "create table if not exists users (id bigint, name text, phone text, primary key (id));",
+            "truncate": "truncate table users",
+            "drop": "drop table users",
+            "insert": "insert into users(id, name, phone) VALUES(:id,  :name, :phone) ON CONFLICT DO NOTHING"
+        },
+        "addresses": {
+            "create": "create table if not exists addresses (id bigint, user_id bigint, address text, city text, state text, zip_code text, primary key (id));",
+            "truncate": "truncate table addresses",
+            "drop": "drop table addresses",
+            "insert": "insert into addresses(id, user_id, address, city, state, zip_code) VALUES(:id, :user_id, :address, :city, :state, :zip_code) ON CONFLICT DO NOTHING"
+        }
+    },
+    "schema": {
+        "users": {
+            "id": "doubleValue",
+            "name": "stringValue",
+            "phone": "stringValue"
+        },
+        "addresses": {
+            "id": "doubleValue",
+            "user_id": "doubleValue",
+            "address": "stringValue",
+            "city": "stringValue",
+            "state": "stringValue",
+            "zip_code": "stringValue"
+        }
+    },
+    "data": {
+        "users": [
+            {"id": "1", "name": "Kevin", "phone":"(123) 456-7890" },
+            {"id": "1", "name": "Mat", "phone": "(456) 789-0123"}
+        ],
+        "addresses": [
+            {"id": "1", "user_id": "1", "address": "123 Fake Street", "city": "Seattle", "state": "WA", "zip_code": "43243"},
+            {"id": "2", "user_id": "1", "address": "987 Real Street", "city": "Seattle", "state": "WA", "zip_code": "43243"},
+            {"id": "3", "user_id": "2", "address": "123 Real Street", "city": "Seattle", "state": "WA", "zip_code": "43243"},
+            {"id": "4", "user_id": "2", "address": "987 Fake Street", "city": "Seattle", "state": "WA", "zip_code": "43243"}
+        ]
+    }
+}

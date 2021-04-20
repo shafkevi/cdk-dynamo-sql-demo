@@ -9,12 +9,14 @@
             {
                 "address": "123 Fake street",
                 "city": "Seattle",
-                "zipCode": "43243"
+                "zipCode": "43243",
+                "state": "WA"
             },
             {
                 "address": "987 Real street",
                 "city": "Seattle",
-                "zipCode": "43243"
+                "zipCode": "43243",
+                "state": "WA"
 
             }
         ]
@@ -29,13 +31,14 @@
             {
                 "address": "987 Fake street",
                 "city": "Seattle",
-                "zipCode": "43243"
+                "zipCode": "43243",
+                "state": "WA"
             },
             {
                 "address": "123 Real street",
                 "city": "Seattle",
-                "zipCode": "43243"
-
+                "zipCode": "43243",
+                "state": "WA"
             }
         ]
     }

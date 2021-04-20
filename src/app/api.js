@@ -1,5 +1,6 @@
 const express = require('express');
 const AWS = require('aws-sdk');
+const { cleanSql } = require("./helpers.js");
 
 const PORT = 8080;
 const HOST = '0.0.0.0';
@@ -11,40 +12,15 @@ const cloudFormation = new AWS.CloudFormation({});
 const PARAMETERS = {};
 
 
-const cleanSql = (records, meta) => {
-    const output = []
-    for (let i=0; i<records.length; i++){
-        record = records[i];
-        const record_output = {}
-        for (let j = 0; j<record.length; j++){
-            const item = record[j];
-            if ("stringValue" in item)
-                _value = item["stringValue"]
-            else if ("longValue" in item)
-                _value = item["longValue"]
-            else if ("isNull" in item)
-                _value = None
-            else if ("arrayValues" in item) // # TODO: more fun nested work here if needed.
-                _value = item["arrayValues"]
-            record_output[meta[j]["label"]] = _value
-        }
-        output.push(record_output)
-    }
-    return output
-}
+
 
 const dynamoOrSql = (req, res, next) => {
-    if (Object.keys(req.query).includes("dynamo")){
-        req.dynamo=true;
-    }
-    else {
-        req.dynamo=false;
-    }
+    if (Object.keys(req.query).includes("dynamo")){ req.dynamo=true; }
+    else { req.dynamo=false; }
     next();
 };
 
 app.use(dynamoOrSql);
-
 
 // WIP
 // App
@@ -74,10 +50,80 @@ app.get('/users', async(req, res, next) => {
         }).promise();
         result = cleanSql(result["records"], result["columnMetadata"])
     }
-    
+
     console.log(JSON.stringify(result));
     res.send(result);
 });
+
+
+app.get('/users/:name', async(req, res, next) => {
+    console.log(Object.keys(req));
+    let result = {};
+    if (req.dynamo){
+        result = await dynamo.query({
+            TableName: PARAMETERS.DynamoTableName,
+            KeyConditionExpression: "partitionKey = :partitionKey and sortKey = :sortKey",
+            ExpressionAttributeValues: {
+                ":partitionKey": "users",
+                ":sortKey": `user_${req.params.name}#`
+            },
+            ExpressionAttributeNames: {
+                "#name": "name"
+            },
+            ProjectionExpression: "id, #name, phone"
+        }).promise();
+        result = result.Items;
+    }
+    else {
+        result = await rds.executeStatement({
+            secretArn: PARAMETERS.SqlDatabaseSecretArn,
+            resourceArn: PARAMETERS.SqlDatabaseArn,
+            database: "app",
+            sql:"select * from users where name = :name",
+            parameters: [{name: "name", value: {"stringValue": req.params.name}}],
+            includeResultMetadata: true,
+        }).promise();
+        result = cleanSql(result["records"], result["columnMetadata"])
+    }
+
+    console.log(JSON.stringify(result));
+    res.send(result);
+});
+
+app.get('/users/:name/address', async(req, res, next) => {
+    console.log(Object.keys(req));
+    let result = {};
+    if (req.dynamo){
+        result = await dynamo.query({
+            TableName: PARAMETERS.DynamoTableName,
+            KeyConditionExpression: "partitionKey = :partitionKey and sortKey = :sortKey",
+            ExpressionAttributeValues: {
+                ":partitionKey": "users",
+                ":sortKey": `user_${req.params.name}#`
+            },
+            ExpressionAttributeNames: {
+                "#name": "name"
+            },
+            ProjectionExpression: "id, #name, addresses"
+        }).promise();
+        result = result.Items;
+    }
+    else {
+        result = await rds.executeStatement({
+            secretArn: PARAMETERS.SqlDatabaseSecretArn,
+            resourceArn: PARAMETERS.SqlDatabaseArn,
+            database: "app",
+            sql:"select u.name, a.* from users u inner join addresses a on a.user_id = u.id where u.name = :name",
+            parameters: [{name: "name", value: {"stringValue": req.params.name}}],
+            includeResultMetadata: true,
+        }).promise();
+        result = cleanSql(result["records"], result["columnMetadata"])
+    }
+
+    console.log(JSON.stringify(result));
+    res.send(result);
+});
+
 
 (async () => {
     const stackInfo = await cloudFormation.describeStacks({
