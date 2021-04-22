@@ -10,23 +10,28 @@ import * as logs from '@aws-cdk/aws-logs';
 import * as cr from '@aws-cdk/custom-resources';
 import * as lambda from '@aws-cdk/aws-lambda';
 
-export interface TemplateProps { }
+export interface TemplateProps { 
+  userArn?: string;
+  vpcId?: string;
+}
 
 export default class Template extends Construct {
   constructor(scope: Construct, id: string, props: TemplateProps) {
     super(scope, id);
     const {  } = props;
 
-    const vpc = Vpc.fromLookup(this, "defaultVpc", {
-      isDefault: true
-    });
-
-    const userArn = process.env.USER_ARN;
+    const vpc = props.vpcId 
+      ? Vpc.fromLookup(this, "userVpc", { vpcId: props.vpcId })
+      : Vpc.fromLookup(this, "defaultVpc", { isDefault: true })
+    ;
 
     const cloudNineInstance = new Ec2Environment(this, "CloudNineEnvironment", {
       vpc
-    })
+    });
 
+    // If the user is not same principle as the creator of the CDK stack, this gives us
+    // a way to add additional permission to the Cloud9 instance:
+    if (props.userArn) {
     const addCloudNineMembership = new AwsCustomResource(this, `addCloudNineMembership`, {
       installLatestAwsSdk: false,
       onCreate: {
@@ -35,7 +40,7 @@ export default class Template extends Construct {
         parameters: {
           environmentId: cloudNineInstance.environmentId,
           permissions: "read-write",
-          userArn
+            userArn: props.userArn
         },
         physicalResourceId: PhysicalResourceId.of('id'),
         // ignoreErrorCodesMatching: ".*",
@@ -44,6 +49,7 @@ export default class Template extends Construct {
     });
     addCloudNineMembership.node.addDependency(cloudNineInstance);
 
+    }
 
     const dynamoDbTable = new Table(this, "DynamoDBTable", {
         tableName: `${id}Table`,
