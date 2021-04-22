@@ -1,0 +1,5 @@
+id	age	city	height	mobile	state	username
+1	33	Seattle			WA	mathew
+2	30	null			AZ	sam
+3	null	Mesa			AZ	pam
+4		Tempe	5'11	123-456-7890	AZ	mark
