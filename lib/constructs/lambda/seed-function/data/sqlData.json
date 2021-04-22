@@ -31,7 +31,7 @@
     "data": {
         "users": [
             {"id": "1", "name": "Kevin", "phone":"(123) 456-7890" },
-            {"id": "1", "name": "Mat", "phone": "(456) 789-0123"}
+            {"id": "2", "name": "Mat", "phone": "(456) 789-0123"}
         ],
         "addresses": [
             {"id": "1", "user_id": "1", "address": "123 Fake Street", "city": "Seattle", "state": "WA", "zip_code": "43243"},

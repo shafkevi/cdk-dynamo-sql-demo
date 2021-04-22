@@ -1,10 +1,14 @@
 import * as fs from "fs";
 import * as path from 'path';
+import { CfnOutput, Construct, Duration, RemovalPolicy, CustomResource } from "@aws-cdk/core";
 import { AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId } from "@aws-cdk/custom-resources";
 import { CloneRepository, Ec2Environment } from "@aws-cdk/aws-cloud9";
 import { SubnetType, Vpc } from "@aws-cdk/aws-ec2";
 import { AttributeType, BillingMode, Table } from "@aws-cdk/aws-dynamodb";
 import { AuroraCapacityUnit, AuroraPostgresEngineVersion, DatabaseClusterEngine, ServerlessCluster, SubnetGroup } from "@aws-cdk/aws-rds";
+import * as logs from '@aws-cdk/aws-logs';
+import * as cr from '@aws-cdk/custom-resources';
+import * as lambda from '@aws-cdk/aws-lambda';
 
 export interface TemplateProps { }
 
@@ -80,6 +84,33 @@ export default class Template extends Construct {
         subnetGroup,
       });
 
+    // Lambda function will seed our databases with sample data:
+    const seedFunction = new lambda.Function(this, "SeedFunction", {
+      runtime: lambda.Runtime.NODEJS_14_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, 'lambda/seed-function')),
+      environment: {
+        SqlDatabaseSecretArn: sqlDatabase.secret!.secretArn,
+        SqlDatabaseArn: sqlDatabase.clusterArn,
+        DynamoTableName: dynamoDbTable.tableName
+      }
+    });
+
+    sqlDatabase.grantDataApiAccess(seedFunction);
+    sqlDatabase.secret!.grantRead(seedFunction);
+    dynamoDbTable.grantReadWriteData(seedFunction);
+
+    const seedFunctionProvider = new cr.Provider(this, 'SeedFunctionProvider', {
+      onEventHandler: seedFunction,
+      logRetention: logs.RetentionDays.ONE_DAY   // default is INFINITE
+    });
+
+    const mySeedFunctionResource = new CustomResource(this, "SeedFunctionResource", { 
+      serviceToken: seedFunctionProvider.serviceToken,
+      properties: {
+        SomeProperty: "12345"   // changing this value will cause resource to re-run, useful if/when we change code in Lambda
+      }
+    });
 
     new CfnOutput(this, "cloud9IdeUrl", {
       exportName: `cloud9IdeUrl`,
