@@ -1,61 +1,66 @@
-import fs from "fs";
-import path from "path";
-import { Repository } from "@aws-cdk/aws-codecommit";
-import { CfnOutput, Construct, Duration, RemovalPolicy } from "@aws-cdk/core";
+import * as fs from "fs";
+import * as path from 'path';
+import { CfnOutput, Construct, Duration, RemovalPolicy, CustomResource } from "@aws-cdk/core";
 import { AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId } from "@aws-cdk/custom-resources";
 import { CloneRepository, Ec2Environment } from "@aws-cdk/aws-cloud9";
 import { SubnetType, Vpc } from "@aws-cdk/aws-ec2";
 import { AttributeType, BillingMode, Table } from "@aws-cdk/aws-dynamodb";
 import { AuroraCapacityUnit, AuroraPostgresEngineVersion, DatabaseClusterEngine, ServerlessCluster, SubnetGroup } from "@aws-cdk/aws-rds";
+import * as logs from '@aws-cdk/aws-logs';
+import * as cr from '@aws-cdk/custom-resources';
+import * as lambda from '@aws-cdk/aws-lambda';
 
-export interface TemplateProps { }
+
+export interface TemplateProps { 
+  userArn?: string;
+  vpcId?: string;
+}
 
 export default class Template extends Construct {
   constructor(scope: Construct, id: string, props: TemplateProps) {
     super(scope, id);
     const {  } = props;
 
-    const vpc = Vpc.fromLookup(this, "defaultVpc", {
-      isDefault: true
-    });
-
-    const userArn = process.env.USER_ARN;
+    const vpc = props.vpcId 
+      ? Vpc.fromLookup(this, "userVpc", { vpcId: props.vpcId })
+      : Vpc.fromLookup(this, "defaultVpc", { isDefault: true })
+    ;
 
     const cloudNineInstance = new Ec2Environment(this, "CloudNineEnvironment", {
       vpc
-    })
-
-    const addCloudNineMembership = new AwsCustomResource(this, `addCloudNineMembership`, {
-      installLatestAwsSdk: false,
-      onCreate: {
-        service: "Cloud9",
-        action: "createEnvironmentMembership",
-        parameters: {
-          environmentId: cloudNineInstance.environmentId,
-          permissions: "read-write",
-          userArn
-        },
-        physicalResourceId: PhysicalResourceId.of('id'),
-        // ignoreErrorCodesMatching: ".*",
-      },
-      policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
     });
-    addCloudNineMembership.node.addDependency(cloudNineInstance);
 
+    // If the user is not same principle as the creator of the CDK stack, this gives us
+    // a way to add additional permission to the Cloud9 instance:
+    if (props.userArn) {
+      const addCloudNineMembership = new AwsCustomResource(this, `addCloudNineMembership`, {
+        installLatestAwsSdk: false,
+        onCreate: {
+          service: "Cloud9",
+          action: "createEnvironmentMembership",
+          parameters: {
+            environmentId: cloudNineInstance.environmentId,
+            permissions: "read-write",
+            userArn: props.userArn
+          },
+          physicalResourceId: PhysicalResourceId.of('id'),
+          // ignoreErrorCodesMatching: ".*",
+        },
+        policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
+      });
+      addCloudNineMembership.node.addDependency(cloudNineInstance);
+  
+    }
 
-    const dynamoDbTable = new Table(this, "DynamoDBTable", {
-        tableName: `${id}Table`,
+    const dynamoDbTableV1 = new Table(this, "DynamoDBTableV1", {
+        tableName: `${id}-v1`,
         billingMode: BillingMode.PAY_PER_REQUEST,
         removalPolicy: RemovalPolicy.DESTROY,
         partitionKey: {
-          name: "partitionKey",
-          type: AttributeType.STRING
-        },
-        sortKey: {
-          name: "sortKey",
+          name: "id",
           type: AttributeType.STRING
         }
-      });
+    });
 
       const subnetGroup = new SubnetGroup(this, "SubnetGroup", {
         vpc,
@@ -82,6 +87,34 @@ export default class Template extends Construct {
         subnetGroup,
       });
 
+    // Lambda function will seed our databases with sample data:
+    const seedFunction = new lambda.Function(this, "SeedFunction", {
+      runtime: lambda.Runtime.NODEJS_14_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, 'lambda/seed-function')),
+      timeout: Duration.seconds(10),
+      environment: {
+        SqlDatabaseSecretArn: sqlDatabase.secret!.secretArn,
+        SqlDatabaseArn: sqlDatabase.clusterArn,
+        DynamoTableNameV1: dynamoDbTableV1.tableName
+      }
+    });
+
+    sqlDatabase.grantDataApiAccess(seedFunction);
+    sqlDatabase.secret!.grantRead(seedFunction);
+    dynamoDbTableV1.grantReadWriteData(seedFunction);
+
+    const seedFunctionProvider = new cr.Provider(this, 'SeedFunctionProvider', {
+      onEventHandler: seedFunction,
+      logRetention: logs.RetentionDays.ONE_DAY   // default is INFINITE
+    });
+
+    const mySeedFunctionResource = new CustomResource(this, "SeedFunctionResource", { 
+      serviceToken: seedFunctionProvider.serviceToken,
+      properties: {
+        SomeProperty: "1235"   // changing this value will cause resource to re-run, useful if/when we change code in Lambda
+      }
+    });
 
     new CfnOutput(this, "cloud9IdeUrl", {
       exportName: `cloud9IdeUrl`,
@@ -90,7 +123,7 @@ export default class Template extends Construct {
 
     new CfnOutput(this, "DynamoTableName", {
       exportName: `DynamoTableName`,
-      value: dynamoDbTable.tableName
+      value: dynamoDbTableV1.tableName
     });
     
     new CfnOutput(this, "SqlDatabaseArn", {
@@ -99,7 +132,7 @@ export default class Template extends Construct {
     });
     new CfnOutput(this, "SqlDatabaseSecretArn", {
       exportName: `SqlDatabaseSecretArn`,
-      value: sqlDatabase.secret ? sqlDatabase.secret.secretArn : ""
+      value: sqlDatabase.secret!.secretArn
     });
 
   }
