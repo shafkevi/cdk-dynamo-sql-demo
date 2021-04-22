@@ -10,6 +10,7 @@ import * as logs from '@aws-cdk/aws-logs';
 import * as cr from '@aws-cdk/custom-resources';
 import * as lambda from '@aws-cdk/aws-lambda';
 
+
 export interface TemplateProps { 
   userArn?: string;
   vpcId?: string;
@@ -51,19 +52,15 @@ export default class Template extends Construct {
   
     }
 
-    const dynamoDbTable = new Table(this, "DynamoDBTable", {
-        tableName: `${id}Table`,
+    const dynamoDbTableV1 = new Table(this, "DynamoDBTableV1", {
+        tableName: `${id}-v1`,
         billingMode: BillingMode.PAY_PER_REQUEST,
         removalPolicy: RemovalPolicy.DESTROY,
         partitionKey: {
-          name: "partitionKey",
-          type: AttributeType.STRING
-        },
-        sortKey: {
-          name: "sortKey",
+          name: "id",
           type: AttributeType.STRING
         }
-      });
+    });
 
       const subnetGroup = new SubnetGroup(this, "SubnetGroup", {
         vpc,
@@ -95,16 +92,17 @@ export default class Template extends Construct {
       runtime: lambda.Runtime.NODEJS_14_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, 'lambda/seed-function')),
+      timeout: Duration.seconds(10),
       environment: {
         SqlDatabaseSecretArn: sqlDatabase.secret!.secretArn,
         SqlDatabaseArn: sqlDatabase.clusterArn,
-        DynamoTableName: dynamoDbTable.tableName
+        DynamoTableNameV1: dynamoDbTableV1.tableName
       }
     });
 
     sqlDatabase.grantDataApiAccess(seedFunction);
     sqlDatabase.secret!.grantRead(seedFunction);
-    dynamoDbTable.grantReadWriteData(seedFunction);
+    dynamoDbTableV1.grantReadWriteData(seedFunction);
 
     const seedFunctionProvider = new cr.Provider(this, 'SeedFunctionProvider', {
       onEventHandler: seedFunction,
@@ -114,7 +112,7 @@ export default class Template extends Construct {
     const mySeedFunctionResource = new CustomResource(this, "SeedFunctionResource", { 
       serviceToken: seedFunctionProvider.serviceToken,
       properties: {
-        SomeProperty: "12345"   // changing this value will cause resource to re-run, useful if/when we change code in Lambda
+        SomeProperty: "1235"   // changing this value will cause resource to re-run, useful if/when we change code in Lambda
       }
     });
 
@@ -125,7 +123,7 @@ export default class Template extends Construct {
 
     new CfnOutput(this, "DynamoTableName", {
       exportName: `DynamoTableName`,
-      value: dynamoDbTable.tableName
+      value: dynamoDbTableV1.tableName
     });
     
     new CfnOutput(this, "SqlDatabaseArn", {
