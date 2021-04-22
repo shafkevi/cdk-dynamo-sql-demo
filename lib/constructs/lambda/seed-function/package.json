@@ -10,5 +10,9 @@
   "license": "ISC",
   "dependencies": {
     "csvtojson": "^2.0.10"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.890.0",
+    "dotenv": "^8.2.0"
   }
 }

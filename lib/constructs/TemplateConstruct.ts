@@ -1,8 +1,7 @@
-import * as fs from "fs";
 import * as path from 'path';
 import { CfnOutput, Construct, Duration, RemovalPolicy, CustomResource } from "@aws-cdk/core";
 import { AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId } from "@aws-cdk/custom-resources";
-import { CloneRepository, Ec2Environment } from "@aws-cdk/aws-cloud9";
+import { Ec2Environment } from "@aws-cdk/aws-cloud9";
 import { SubnetType, Vpc } from "@aws-cdk/aws-ec2";
 import { AttributeType, BillingMode, Table } from "@aws-cdk/aws-dynamodb";
 import { AuroraCapacityUnit, AuroraPostgresEngineVersion, DatabaseClusterEngine, ServerlessCluster, SubnetGroup } from "@aws-cdk/aws-rds";

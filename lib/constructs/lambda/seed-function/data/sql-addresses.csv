@@ -1,0 +1,9 @@
+id ,user_id ,address         ,city    ,state , zip_code
+1  ,1       ,123 Fake Street ,Seattle ,WA    , 12345
+2  ,1       ,987 Real Street ,Seattle ,WA    , 12345
+3  ,2       ,123 Real Street ,Seattle ,WA    , 12345
+4  ,2       ,987 Fake Street ,Seattle ,WA    , 12345
+5  ,3       ,100 Seal Street ,Seattle ,WA    , 12345
+6  ,4       ,200 Dogs Street ,Tampa   ,FL    , 54321
+7  ,4       ,300 Cats Street ,Seattle ,WA    , 12345
+8  ,4       ,400 Bats Street ,Buffalo ,NY    , 98765
