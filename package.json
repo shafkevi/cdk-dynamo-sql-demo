@@ -2,11 +2,10 @@
   "name": "cdk-template",
   "version": "0.1.0",
   "scripts": {
-    "synth": "npm run build && cdk synth",
-    "deploy": "npm run build && cdk deploy",
-    "build": "./scripts/build.sh",
-    "clean": "./scripts/clean.sh",
-    "watch": "npx tsc -w"
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk"
   },
   "dependencies": {
     "@aws-cdk/assert": "^1.98.0",

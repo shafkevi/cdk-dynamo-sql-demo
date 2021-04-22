@@ -1,7 +1,5 @@
-import fs from "fs";
-import path from "path";
-import { Repository } from "@aws-cdk/aws-codecommit";
-import { CfnOutput, Construct, Duration, RemovalPolicy } from "@aws-cdk/core";
+import * as fs from "fs";
+import * as path from 'path';
 import { AwsCustomResource, AwsCustomResourcePolicy, PhysicalResourceId } from "@aws-cdk/custom-resources";
 import { CloneRepository, Ec2Environment } from "@aws-cdk/aws-cloud9";
 import { SubnetType, Vpc } from "@aws-cdk/aws-ec2";
