@@ -32,23 +32,23 @@ export default class Template extends Construct {
     // If the user is not same principle as the creator of the CDK stack, this gives us
     // a way to add additional permission to the Cloud9 instance:
     if (props.userArn) {
-    const addCloudNineMembership = new AwsCustomResource(this, `addCloudNineMembership`, {
-      installLatestAwsSdk: false,
-      onCreate: {
-        service: "Cloud9",
-        action: "createEnvironmentMembership",
-        parameters: {
-          environmentId: cloudNineInstance.environmentId,
-          permissions: "read-write",
+      const addCloudNineMembership = new AwsCustomResource(this, `addCloudNineMembership`, {
+        installLatestAwsSdk: false,
+        onCreate: {
+          service: "Cloud9",
+          action: "createEnvironmentMembership",
+          parameters: {
+            environmentId: cloudNineInstance.environmentId,
+            permissions: "read-write",
             userArn: props.userArn
+          },
+          physicalResourceId: PhysicalResourceId.of('id'),
+          // ignoreErrorCodesMatching: ".*",
         },
-        physicalResourceId: PhysicalResourceId.of('id'),
-        // ignoreErrorCodesMatching: ".*",
-      },
-      policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
-    });
-    addCloudNineMembership.node.addDependency(cloudNineInstance);
-
+        policy: AwsCustomResourcePolicy.fromSdkCalls({resources: AwsCustomResourcePolicy.ANY_RESOURCE})
+      });
+      addCloudNineMembership.node.addDependency(cloudNineInstance);
+  
     }
 
     const dynamoDbTable = new Table(this, "DynamoDBTable", {
@@ -134,7 +134,7 @@ export default class Template extends Construct {
     });
     new CfnOutput(this, "SqlDatabaseSecretArn", {
       exportName: `SqlDatabaseSecretArn`,
-      value: sqlDatabase.secret ? sqlDatabase.secret.secretArn : ""
+      value: sqlDatabase.secret!.secretArn
     });
 
   }
