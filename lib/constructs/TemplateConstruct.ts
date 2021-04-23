@@ -51,14 +51,48 @@ export default class Template extends Construct {
   
     }
 
-    const dynamoDbTableV1 = new Table(this, "DynamoDBTableV1", {
-        tableName: `${id}-v1`,
+    // Our most basic table, which closely follows our relational mental model of one table = one entity type
+    const dynamoDbTableV1 = new Table(this, "DynamoDBTable-V1", {
+        tableName: `${id}-V1`,
         billingMode: BillingMode.PAY_PER_REQUEST,
         removalPolicy: RemovalPolicy.DESTROY,
         partitionKey: {
-          name: "id",
+          name: "user_id",
           type: AttributeType.STRING
         }
+    });
+
+    // With addition of a sort key, we introduce many:1 relation modeling in DynamoDB:
+    const dynamoDbTableV2 = new Table(this, "DynamoDBTable-V2", {
+      tableName: `${id}-V2`,
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+      partitionKey: {
+        name: "user_id",
+        type: AttributeType.STRING
+      },
+      sortKey: {
+        name: "sk",
+        type: AttributeType.STRING
+      }
+    });
+
+    // we take this further, changing the partition key from "user_id" to "pk", which allows our
+    // mental model to expand - we can now conceptually store completely different entity types,
+    // even if they are unrelated, in the same table. This is important if/when ACID transactions
+    // are needed, since DDB only supports transactions in a single table:
+    const dynamoDbTableV3 = new Table(this, "DynamoDBTable-V3", {
+      tableName: `${id}-V3`,
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+      partitionKey: {
+        name: "pk",
+        type: AttributeType.STRING
+      },
+      sortKey: {
+        name: "sk",
+        type: AttributeType.STRING
+      }
     });
 
       const subnetGroup = new SubnetGroup(this, "SubnetGroup", {
@@ -95,7 +129,9 @@ export default class Template extends Construct {
       environment: {
         SqlDatabaseSecretArn: sqlDatabase.secret!.secretArn,
         SqlDatabaseArn: sqlDatabase.clusterArn,
-        DynamoTableNameV1: dynamoDbTableV1.tableName
+        DynamoTableNameV1: dynamoDbTableV1.tableName,
+        DynamoTableNameV2: dynamoDbTableV2.tableName,
+        DynamoTableNameV3: dynamoDbTableV3.tableName
       }
     });
 
@@ -111,7 +147,7 @@ export default class Template extends Construct {
     const mySeedFunctionResource = new CustomResource(this, "SeedFunctionResource", { 
       serviceToken: seedFunctionProvider.serviceToken,
       properties: {
-        SomeProperty: "1235"   // changing this value will cause resource to re-run, useful if/when we change code in Lambda
+        SomeProperty: "123"   // changing this value will cause resource to re-run, useful if/when we change code in Lambda
       }
     });
 
@@ -120,9 +156,19 @@ export default class Template extends Construct {
       value: cloudNineInstance.ideUrl
     });
 
-    new CfnOutput(this, "DynamoTableName", {
-      exportName: `DynamoTableName`,
+    new CfnOutput(this, "DynamoTableNameV1", {
+      exportName: `DynamoTableNameV1`,
       value: dynamoDbTableV1.tableName
+    });
+
+    new CfnOutput(this, "DynamoTableNameV2", {
+      exportName: `DynamoTableNameV2`,
+      value: dynamoDbTableV2.tableName
+    });
+
+    new CfnOutput(this, "DynamoTableNameV3", {
+      exportName: `DynamoTableNameV3`,
+      value: dynamoDbTableV2.tableName
     });
     
     new CfnOutput(this, "SqlDatabaseArn", {
