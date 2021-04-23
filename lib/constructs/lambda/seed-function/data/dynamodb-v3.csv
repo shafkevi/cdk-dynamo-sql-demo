@@ -1,0 +1,13 @@
+pk,sk,name,age,state,item,qty,unitPrice
+user#1,info,mat,31,WA,,,
+user#2,info,sam,30,AZ,,,
+user#3,info,jane,50,NY,,,
+user#4,info,kimiko,36,CA,,,
+user#1,order100#line001,,,,A100,5,5
+user#1,order100#line002,,,,D302,1,24.99
+user#2,order102#line001,,,,G332,20,2.99
+user#4,order103#line001,,,,A402,50,1.5
+item#A100,info,Widget,,,,,
+item#D302,info,Sprocket,,,,,
+item#G332,info,Nail,,,,,
+item#A402,info,Small Spring,,,,,

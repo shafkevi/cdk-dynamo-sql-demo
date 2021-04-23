@@ -1,0 +1,9 @@
+user_id,sk,name,age,state,item,qty,unitPrice
+1,info,mat,31,WA,,,
+2,info,sam,30,AZ,,,
+3,info,jane,50,NY,,,
+4,info,kimiko,36,CA,,,
+1,order100#line001,,,,22134,5, 5.00 
+1,order100#line002,,,,23042,1,24.99
+2,order102#line001,,,,99000,20,2.99
+4,order103#line001,,,,48953,50,1.5
