@@ -134,10 +134,11 @@ export default class Template extends Construct {
         DynamoTableNameV3: dynamoDbTableV3.tableName
       }
     });
-
     sqlDatabase.grantDataApiAccess(seedFunction);
     sqlDatabase.secret!.grantRead(seedFunction);
     dynamoDbTableV1.grantReadWriteData(seedFunction);
+    dynamoDbTableV2.grantReadWriteData(seedFunction);
+    dynamoDbTableV3.grantReadWriteData(seedFunction);
 
     const seedFunctionProvider = new cr.Provider(this, 'SeedFunctionProvider', {
       onEventHandler: seedFunction,
