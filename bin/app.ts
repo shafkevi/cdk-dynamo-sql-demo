@@ -1,10 +1,12 @@
 import "source-map-support/register";
 import { App } from "@aws-cdk/core";
-import Template from "../lib/stacks/TemplateStack";
+import Stack from "../lib/stacks/Stack";
 
 async function main() {
   const app = new App();
   const props = {
+    vpcId: process.env.VPC_ID,
+    userArn: process.env.USER_ARN,
     env: {
       account: process.env.CDK_DEFAULT_ACCOUNT,
       region: process.env.AWS_REGION ??
@@ -13,7 +15,8 @@ async function main() {
         "us-east-1"
     }
   };
-  new Template(app, "DynamoSqlDemoStack6", props);
+  const stackName = process.env.STACK_NAME || "DynamoSqlDemoStack";
+  new Stack(app, stackName, props);
 }
 
 main().catch(console.error);
