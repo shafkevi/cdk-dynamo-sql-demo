@@ -1,13 +1,13 @@
-pk,sk,name,age,state,item,qty,unitPrice
-user#1,info,mat,31,WA,,,
-user#2,info,sam,30,AZ,,,
-user#3,info,jane,50,NY,,,
-user#4,info,kimiko,36,CA,,,
-user#1,order100#line001,,,,A100,5,5
-user#1,order100#line002,,,,D302,1,24.99
-user#2,order102#line001,,,,G332,20,2.99
-user#4,order103#line001,,,,A402,50,1.5
-item#A100,info,Widget,,,,,
-item#D302,info,Sprocket,,,,,
-item#G332,info,Nail,,,,,
-item#A402,info,Small Spring,,,,,
+pk        ,sk               ,pkIdx1 ,skIdx1           ,recordType ,name   ,age          ,state ,item ,qty ,unitPrice
+user#1    ,info             ,user   ,user1#info       ,user       ,mat    ,31           ,WA    ,     ,    ,
+user#2    ,info             ,user   ,user2#info       ,user       ,sam    ,30           ,AZ    ,     ,    ,
+user#3    ,info             ,user   ,user3#info       ,user       ,jane   ,50           ,NY    ,     ,    ,
+user#4    ,info             ,user   ,user4#info       ,user       ,kimiko ,36           ,CA    ,     ,    ,
+user#1    ,order100#line001 ,order  ,order100#line001 ,order      ,       ,             ,      ,A100 ,5   ,5
+user#1    ,order100#line002 ,order  ,order100#line002 ,order      ,       ,             ,      ,D302 ,1   ,24.99
+user#2    ,order102#line001 ,order  ,order102#line001 ,order      ,       ,             ,      ,G332 ,20  ,2.99
+user#4    ,order103#line001 ,order  ,order103#line001 ,order      ,       ,             ,      ,A402 ,50  ,1.5
+item#A100 ,info             ,item   ,item#A100        ,item       ,       ,Widget       ,      ,     ,    ,
+item#D302 ,info             ,item   ,item#D302        ,item       ,       ,Sprocket     ,      ,     ,    ,
+item#G332 ,info             ,item   ,item#G332        ,item       ,       ,Nail         ,      ,     ,    ,
+item#A402 ,info             ,item   ,item#A402        ,item       ,       ,Small Spring ,      ,     ,    ,

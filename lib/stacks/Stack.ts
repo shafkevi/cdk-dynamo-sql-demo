@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { CfnOutput, Stack, StackProps, Construct, Duration, RemovalPolicy, CustomResource } from "@aws-cdk/core";
 import { SubnetType, Vpc } from "@aws-cdk/aws-ec2";
-import { AttributeType } from "@aws-cdk/aws-dynamodb";
+import { AttributeType, ProjectionType } from "@aws-cdk/aws-dynamodb";
 import { AuroraCapacityUnit, AuroraPostgresEngineVersion, DatabaseClusterEngine, ServerlessCluster, SubnetGroup } from "@aws-cdk/aws-rds";
 import { RetentionDays } from '@aws-cdk/aws-logs';
 import { Provider } from '@aws-cdk/custom-resources';
@@ -66,6 +66,18 @@ export default class App extends Stack {
         name: "sk",
         type: AttributeType.STRING,
       }
+    });
+    dynamoDbTableV3.addGlobalSecondaryIndex({
+      indexName: "idx1",
+      partitionKey: {
+        name: "pkIdx1",
+        type: AttributeType.STRING,
+      },
+      sortKey: {
+        name: "skIdx1",
+        type: AttributeType.STRING,
+      },
+      projectionType: ProjectionType.ALL
     });
 
 

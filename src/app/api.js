@@ -1,137 +1,67 @@
 const express = require('express');
 const AWS = require('aws-sdk');
-const { cleanSql } = require("./helpers.js");
+const dynamo = require('./databases/dynamo.js');
+const sql = require('./databases/dynamo.js');
 
 const PORT = 8080;
 const HOST = '0.0.0.0';
 const app = express();
 
-const rds = new AWS.RDSDataService({});
-const dynamo = new AWS.DynamoDB.DocumentClient({});
-const cloudFormation = new AWS.CloudFormation({});
-const PARAMETERS = {};
+let PARAMETERS = {};
 
+const DBs = {
+    "dynamo": dynamo,
+    "sql": sql,
+}
 
-
-
-const dynamoOrSql = (req, res, next) => {
-    if (Object.keys(req.query).includes("dynamo")){ req.dynamo=true; }
-    else { req.dynamo=false; }
+const whichDb = (req, res, next) => {
+    if (Object.keys(req.query).includes("dynamo")){ 
+        req.dbType="dynamo"; 
+        req.db = DBs["dynamo"];
+    }
+    else { 
+        req.dbType="sql"; 
+        req.db = DBs["sql"]; 
+    }
     next();
 };
 
-app.use(dynamoOrSql);
+app.use(whichDb);
 
 // WIP
 // App
 app.get('/users', async(req, res, next) => {
     let result = {};
-    if (req.dynamo){
-        result = await dynamo.query({
-            TableName: PARAMETERS.DynamoTableName,
-            KeyConditionExpression: "partitionKey = :partitionKey",
-            ExpressionAttributeValues: {
-                ":partitionKey": "users",
-            },
-            ExpressionAttributeNames: {
-                "#name": "name"
-            },
-            ProjectionExpression: "id, #name, phone"
-        }).promise();
-        result = result.Items;
-    }
-    else {
-        result = await rds.executeStatement({
-            secretArn: PARAMETERS.SqlDatabaseSecretArn,
-            resourceArn: PARAMETERS.SqlDatabaseArn,
-            database: "app",
-            sql:"select * from users",
-            includeResultMetadata: true,
-        }).promise();
-        result = cleanSql(result["records"], result["columnMetadata"])
-    }
-
+    result = await req.db.getUsers({PARAMETERS});
     console.log(JSON.stringify(result));
     res.send(result);
 });
 
-
-app.get('/users/:name', async(req, res, next) => {
-    console.log(Object.keys(req));
+app.get('/users/:id', async(req, res, next) => {
     let result = {};
-    if (req.dynamo){
-        result = await dynamo.query({
-            TableName: PARAMETERS.DynamoTableName,
-            KeyConditionExpression: "partitionKey = :partitionKey and sortKey = :sortKey",
-            ExpressionAttributeValues: {
-                ":partitionKey": "users",
-                ":sortKey": `user_${req.params.name}#`
-            },
-            ExpressionAttributeNames: {
-                "#name": "name"
-            },
-            ProjectionExpression: "id, #name, phone"
-        }).promise();
-        result = result.Items;
-    }
-    else {
-        result = await rds.executeStatement({
-            secretArn: PARAMETERS.SqlDatabaseSecretArn,
-            resourceArn: PARAMETERS.SqlDatabaseArn,
-            database: "app",
-            sql:"select * from users where name = :name",
-            parameters: [{name: "name", value: {"stringValue": req.params.name}}],
-            includeResultMetadata: true,
-        }).promise();
-        result = cleanSql(result["records"], result["columnMetadata"])
-    }
-
+    result = await req.db.getUser({PARAMETERS, userId: req.params.id});
     console.log(JSON.stringify(result));
     res.send(result);
 });
 
-app.get('/users/:name/address', async(req, res, next) => {
-    console.log(Object.keys(req));
+app.get('/users/:id/orders', async(req, res, next) => {
     let result = {};
-    if (req.dynamo){
-        result = await dynamo.query({
-            TableName: PARAMETERS.DynamoTableName,
-            KeyConditionExpression: "partitionKey = :partitionKey and sortKey = :sortKey",
-            ExpressionAttributeValues: {
-                ":partitionKey": "users",
-                ":sortKey": `user_${req.params.name}#`
-            },
-            ExpressionAttributeNames: {
-                "#name": "name"
-            },
-            ProjectionExpression: "id, #name, addresses"
-        }).promise();
-        result = result.Items;
-    }
-    else {
-        result = await rds.executeStatement({
-            secretArn: PARAMETERS.SqlDatabaseSecretArn,
-            resourceArn: PARAMETERS.SqlDatabaseArn,
-            database: "app",
-            sql:"select u.name, a.* from users u inner join addresses a on a.user_id = u.id where u.name = :name",
-            parameters: [{name: "name", value: {"stringValue": req.params.name}}],
-            includeResultMetadata: true,
-        }).promise();
-        result = cleanSql(result["records"], result["columnMetadata"])
-    }
-
+    result = await req.db.getOrdersByUser({PARAMETERS, userId: req.params.id});
     console.log(JSON.stringify(result));
     res.send(result);
 });
 
 
 (async () => {
-    const stackInfo = await cloudFormation.describeStacks({
-        StackName: process.env.STACK_NAME || "DynamoSqlDemoStack"
-    }).promise();
-    const outputs = stackInfo.Stacks[0].Outputs;
-    outputs.map(o=>{return PARAMETERS[o.ExportName] = o.OutputValue});
-
+    PARAMETERS = {
+        "DynamoDBTableV1TableName": process.env.DynamoDBTableV1TableName || "DynamoSqlDemoStack-V1",
+        "CloudNineIdeUrl": process.env.CloudNineIdeUrl,
+        "DynamoDBTableV2TableName": process.env.DynamoDBTableV2TableName || "DynamoSqlDemoStack-V2",
+        "SqlDatabaseArn": process.env.SqlDatabaseArn,
+        "DynamoDBTableV3TableName": process.env.DynamoDBTableV3TableName || "DynamoSqlDemoStack-V3",
+        "SqlDatabaseSecretArn": process.env.SqlDatabaseSecretArn,
+    }
+    console.log(JSON.stringify(PARAMETERS, null, 2));
 
     app.listen(PORT, HOST);
     console.log(`Running on http://${HOST}:${PORT}`);

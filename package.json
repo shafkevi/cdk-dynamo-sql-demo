@@ -24,6 +24,7 @@
     "typescript": "~3.9.7"
   },
   "devDependencies": {
+    "cdk-dia": "^0.2.0",
     "dotenv": "^8.2.0"
   }
 }
